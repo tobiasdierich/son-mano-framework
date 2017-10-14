@@ -25,7 +25,7 @@ MAINTAINER SONATA
 # define plugin name once
 ENV PLUGIN_BASE son-mano-service-lifecycle-management
 # Configuration
-ENV broker_host amqp://guest:guest@broker:5672/%2F
+ENV broker_host amqp://guest:guest@son-broker:5672/%2F
 ENV broker_exchange son-kernel
 
 ENV url_gk_api http://son-gtkapi:5000/api/v2/

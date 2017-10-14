@@ -2304,14 +2304,15 @@ class ServiceLifecycleManager(ManoBasePlugin):
             self.services[serv_id]['error'] = response
             return
 
-        # Their should be as many VNFD keys in the dictionary as their
+        # There should be as many VNFD keys in the dictionary as their
         # are network functions listed to the NSD.
         number_of_vnfds = 0
         for key in payload.keys():
             if key[:4] == 'VNFD':
                 number_of_vnfds = number_of_vnfds + 1
 
-        if len(payload['NSD']['network_functions']) != number_of_vnfds:
+        if (not 'network_functions' in payload['NSD'] and number_of_vnfds > 0) or \
+                ('network_functions' in payload['NSD'] and len(payload['NSD']['network_functions']) != number_of_vnfds):
             msg = ": Validation request completed. Number of VNFDs incorrect"
             LOG.info("Service " + serv_id + msg)
             response = "Request " + corr_id + ": # of VNFDs doesn't match NSD."
@@ -2319,13 +2320,37 @@ class ServiceLifecycleManager(ManoBasePlugin):
             self.services[serv_id]['error'] = response
             return
 
-        # Check whether VNFDs are empty.
+        # There should be as many CSD keys in the dictionary as their
+        # are cloud services listed to the NSD.
+        number_of_csds = 0
+        for key in payload.keys():
+            if key[:3] == 'CSD':
+                number_of_csds = number_of_csds + 1
+
+        if (not 'cloud_services' in payload['NSD'] and number_of_csds > 0) or \
+                ('cloud_services' in payload['NSD'] and len(payload['NSD']['cloud_services']) != number_of_csds):
+            msg = ": Validation request completed. Number of CSDs incorrect"
+            LOG.info("Service " + serv_id + msg)
+            response = "Request " + corr_id + ": # of CSDs doesn't match NSD."
+            self.services[serv_id]['status'] = 'ERROR'
+            self.services[serv_id]['error'] = response
+            return
+
+        # Check whether VNFDs or CSDs are empty.
         for key in payload.keys():
             if key[:4] == 'VNFD':
                 if payload[key] is None:
-                    msg = ": Validation request completed. Empty VNFD"
+                    msg = ": Validation request completed. Empty VNFD."
                     LOG.info("Service " + serv_id + msg)
                     response = "Request " + corr_id + ": empty VNFD."
+                    self.services[serv_id]['status'] = 'ERROR'
+                    self.services[serv_id]['error'] = response
+                    return
+            if key[:3] == 'CSD':
+                if payload[key] is None:
+                    msg = ": Validation request completed. Empty CSD."
+                    LOG.info("Service " + serv_id + msg)
+                    response = "Request " + corr_id + ": empty CSD."
                     self.services[serv_id]['status'] = 'ERROR'
                     self.services[serv_id]['error'] = response
                     return
