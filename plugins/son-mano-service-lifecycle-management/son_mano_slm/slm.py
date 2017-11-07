@@ -2128,7 +2128,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
                                  'scale': {'trigger': True, 'payload': {}},
                                  'csd': csd,
                                  'id': cs_id}
-                self.services[serv_id]['function'].append(cs_base_dict)
+                self.services[serv_id]['cloud_service'].append(cs_base_dict)
 
         # Add to correlation id to the ledger
         self.services[serv_id]['original_corr_id'] = corr_id
@@ -2316,10 +2316,10 @@ class ServiceLifecycleManager(ManoBasePlugin):
             return
 
         # The dictionary should contain a 'NSD' key
-        if 'NSD' not in payload.keys():
-            msg = ": Validation of request completed. Status: No NSD"
+        if 'NSD' not in payload.keys() and 'COSD' not in payload.keys():
+            msg = ": Validation of request completed. Status: No NSD/COSD"
             LOG.info("Service " + serv_id + msg)
-            response = "Request " + corr_id + ": NSD is not a dict."
+            response = "Request " + corr_id + ": NSD/COSD is not a dict."
             self.services[serv_id]['status'] = 'ERROR'
             self.services[serv_id]['error'] = response
             return
