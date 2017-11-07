@@ -140,10 +140,11 @@ class PlacementPlugin(ManoBasePlugin):
         LOG.info("Placement request received")
         content = yaml.load(payload)
         topology = content['topology']
-        nsd = content['nsd']
+        descriptor = content['nsd'] if 'nsd' in content else content['cosd']
         functions = content['functions']
+        cloud_services = content['cloud_services']
 
-        placement = self.placement(nsd, functions, topology)
+        placement = self.placement(descriptor, functions, cloud_services, topology)
 
         response = {'mapping': placement}
         topic = 'mano.service.place'
@@ -153,8 +154,9 @@ class PlacementPlugin(ManoBasePlugin):
                              correlation_id=prop.correlation_id)
 
         LOG.info("Response to placement request sent")
+        LOG.info(response)
 
-    def placement(self, NSD, functions, topology):
+    def placement(self, descriptor, functions, cloud_services, topology):
         """
         This is the default placement algorithm that is used if the SLM
         is responsible to perform the placement
@@ -170,6 +172,8 @@ class PlacementPlugin(ManoBasePlugin):
             needed_sto = vdu[0]['resource_requirements']['storage']['size']
 
             for vim in topology:
+                if vim['vim_type'] == 'Kuberetes':
+                    continue
                 cpu_req = needed_cpu <= (vim['core_total'] - vim['core_used'])
                 mem_req = needed_mem <= (vim['memory_total'] - vim['memory_used'])
 
@@ -180,8 +184,24 @@ class PlacementPlugin(ManoBasePlugin):
                     vim['memory_used'] = vim['memory_used'] + needed_mem
                     break
 
-        # Check if all VNFs have been mapped
-        if len(mapping.keys()) == len(functions):
+        for cloud_service in cloud_services:
+            csd = cloud_service['csd']
+            vdu = csd['virtual_deployment_units']
+            needed_mem = vdu[0]['resource_requirements']['memory']['size']
+
+            for vim in topology:
+                if vim['vim_type'] != 'Kuberetes':
+                    continue
+                mem_req = needed_mem <= (vim['memory_total'] - vim['memory_used'])
+
+                if mem_req:
+                    mapping[cloud_service['id']] = {}
+                    mapping[cloud_service['id']]['vim'] = vim['vim_uuid']
+                    vim['memory_used'] = vim['memory_used'] + needed_mem
+                    break
+
+        # Check if all VNFs and CSs have been mapped
+        if len(mapping.keys()) == len(functions) + len(cloud_services):
             return mapping
         else:
             return None
