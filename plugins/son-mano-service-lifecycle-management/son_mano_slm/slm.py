@@ -2097,7 +2097,10 @@ class ServiceLifecycleManager(ManoBasePlugin):
         # Add the service to the ledger and add instance ids
         self.services[serv_id] = {}
         self.services[serv_id]['service'] = {}
-        self.services[serv_id]['service']['nsd'] = payload['NSD']
+        if 'NSD' in payload:
+            self.services[serv_id]['service']['nsd'] = payload['NSD']
+        else:
+            self.services[serv_id]['service']['cosd'] = payload['COSD']
         self.services[serv_id]['service']['id'] = serv_id
 
         self.services[serv_id]['function'] = []
@@ -2114,6 +2117,18 @@ class ServiceLifecycleManager(ManoBasePlugin):
                                  'vnfd': vnfd,
                                  'id': vnf_id}
                 self.services[serv_id]['function'].append(vnf_base_dict)
+            elif key[:3] == 'CSD':
+                cs_id = str(uuid.uuid4())
+                msg = "CSD instance id generated: " + cs_id
+                LOG.info("Service " + serv_id + msg)
+                csd = payload[key]
+                cs_base_dict = {'start': {'trigger': True, 'payload': {}},
+                                 'stop': {'trigger': True, 'payload': {}},
+                                 'configure': {'trigger': True, 'payload': {}},
+                                 'scale': {'trigger': True, 'payload': {}},
+                                 'csd': csd,
+                                 'id': cs_id}
+                self.services[serv_id]['function'].append(cs_base_dict)
 
         # Add to correlation id to the ledger
         self.services[serv_id]['original_corr_id'] = corr_id
@@ -2130,13 +2145,18 @@ class ServiceLifecycleManager(ManoBasePlugin):
         self.services[serv_id]['task_log'] = []
 
         # Create the SSM dict if SSMs are defined in NSD
-        ssm_dict = tools.get_sm_from_descriptor(payload['NSD'])
+        if 'NSD' in payload:
+            ssm_dict = tools.get_sm_from_descriptor(payload['NSD'])
+        else:
+            ssm_dict = tools.get_sm_from_descriptor(payload['COSD'])
+
         self.services[serv_id]['service']['ssm'] = ssm_dict
 
         print(self.services[serv_id]['service']['ssm'])
 
-        # Create counter for vnfs
+        # Create counter for vnfs and css
         self.services[serv_id]['vnfs_to_resp'] = 0
+        self.services[serv_id]['css_to_resp'] = 0
 
         # Create the chain pause and kill flag
         self.services[serv_id]['pause_chain'] = False
