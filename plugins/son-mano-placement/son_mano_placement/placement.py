@@ -172,7 +172,7 @@ class PlacementPlugin(ManoBasePlugin):
             needed_sto = vdu[0]['resource_requirements']['storage']['size']
 
             for vim in topology:
-                if vim['vim_type'] == 'Kuberetes':
+                if vim['vim_type'] == 'Kubernetes':
                     continue
                 cpu_req = needed_cpu <= (vim['core_total'] - vim['core_used'])
                 mem_req = needed_mem <= (vim['memory_total'] - vim['memory_used'])
@@ -190,7 +190,7 @@ class PlacementPlugin(ManoBasePlugin):
             needed_mem = vdu[0]['resource_requirements']['memory']['size']
 
             for vim in topology:
-                if vim['vim_type'] != 'Kuberetes':
+                if vim['vim_type'] != 'Kubernetes':
                     continue
                 mem_req = needed_mem <= (vim['memory_total'] - vim['memory_used'])
 
