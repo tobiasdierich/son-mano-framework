@@ -438,7 +438,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
 
         # Add workflow to ledger
         self.services[serv_id]['topic'] = t.GK_CREATE
-        self.services[serv_id]["current_workflow"] = 'instantiation'
+        self.services[serv_id]['current_workflow'] = 'instantiation'
 
         # Schedule the tasks that the SLM should do for this request.
         add_schedule = []
@@ -1135,7 +1135,10 @@ class ServiceLifecycleManager(ManoBasePlugin):
         corr_id = str(uuid.uuid4())
         # Sending the NSD to the SRM triggers it to onboard the ssms
         msg = {}
-        msg['NSD'] = self.services[serv_id]['service']['nsd']
+        if 'nsd' in self.services[serv_id]['service']:
+            msg['NSD'] = self.services[serv_id]['service']['nsd']
+        else:
+            msg['NSD'] = self.services[serv_id]['service']['cosd']
         msg['VNFD'] = []
         for function in self.services[serv_id]['function']:
             msg['VNFD'].append(function['vnfd'])
@@ -1167,7 +1170,10 @@ class ServiceLifecycleManager(ManoBasePlugin):
         # Sending the NSD to the SRM triggers it to instantiate the ssms
 
         msg_for_smr = {}
-        msg_for_smr['NSD'] = self.services[serv_id]['service']['nsd']
+        if 'nsd' in self.services[serv_id]['service']:
+            msg_for_smr['NSD'] = self.services[serv_id]['service']['nsd']
+        else:
+            msg_for_smr['NSD'] = self.services[serv_id]['service']['cosd']
         msg_for_smr['UUID'] = serv_id
 
         msg = ": Keys in message for SSM instant: " + str(msg_for_smr.keys())
@@ -1237,7 +1243,10 @@ class ServiceLifecycleManager(ManoBasePlugin):
         if ssm_place['instantiated'] is False:
             return self.SLM_mapping(serv_id)
         # build message for placement SSM
-        nsd = self.services[serv_id]['service']['nsd']
+        if 'nsd' in self.services[serv_id]['service']:
+            nsd = self.services[serv_id]['service']['nsd']
+        else:
+            nsd = self.services[serv_id]['service']['cosd']
         top = self.services[serv_id]['infrastructure']['topology']
 
         vnfds = []
@@ -2104,6 +2113,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
         self.services[serv_id]['service']['id'] = serv_id
 
         self.services[serv_id]['function'] = []
+        self.services[serv_id]['cloud_service'] = []
         for key in payload.keys():
             if key[:4] == 'VNFD':
                 vnf_id = str(uuid.uuid4())
@@ -2324,6 +2334,11 @@ class ServiceLifecycleManager(ManoBasePlugin):
             self.services[serv_id]['error'] = response
             return
 
+        if 'NSD' in payload:
+            descriptor = payload['NSD']
+        else:
+            descriptor = payload['COSD']
+
         # There should be as many VNFD keys in the dictionary as their
         # are network functions listed to the NSD.
         number_of_vnfds = 0
@@ -2331,8 +2346,8 @@ class ServiceLifecycleManager(ManoBasePlugin):
             if key[:4] == 'VNFD':
                 number_of_vnfds = number_of_vnfds + 1
 
-        if (not 'network_functions' in payload['NSD'] and number_of_vnfds > 0) or \
-                ('network_functions' in payload['NSD'] and len(payload['NSD']['network_functions']) != number_of_vnfds):
+        if (not 'network_functions' in descriptor and number_of_vnfds > 0) or \
+                ('network_functions' in descriptor and len(descriptor['network_functions']) != number_of_vnfds):
             msg = ": Validation request completed. Number of VNFDs incorrect"
             LOG.info("Service " + serv_id + msg)
             response = "Request " + corr_id + ": # of VNFDs doesn't match NSD."
@@ -2347,8 +2362,8 @@ class ServiceLifecycleManager(ManoBasePlugin):
             if key[:3] == 'CSD':
                 number_of_csds = number_of_csds + 1
 
-        if (not 'cloud_services' in payload['NSD'] and number_of_csds > 0) or \
-                ('cloud_services' in payload['NSD'] and len(payload['NSD']['cloud_services']) != number_of_csds):
+        if (not 'cloud_services' in descriptor and number_of_csds > 0) or \
+                ('cloud_services' in descriptor and len(descriptor['cloud_services']) != number_of_csds):
             msg = ": Validation request completed. Number of CSDs incorrect"
             LOG.info("Service " + serv_id + msg)
             response = "Request " + corr_id + ": # of CSDs doesn't match NSD."
@@ -2398,13 +2413,24 @@ class ServiceLifecycleManager(ManoBasePlugin):
 
         LOG.info("Service " + serv_id + ": Calculating the placement")
         topology = self.services[serv_id]['infrastructure']['topology']
-        NSD = self.services[serv_id]['service']['nsd']
-        functions = self.services[serv_id]['function']
+        if 'nsd' in self.services[serv_id]['service']:
+            NSD = self.services[serv_id]['service']['nsd']
+            functions = self.services[serv_id]['function']
 
-        content = {'nsd': NSD,
-                   'functions': functions,
-                   'topology': topology,
-                   'serv_id': serv_id}
+            content = {'nsd': NSD,
+                       'functions': functions,
+                       'topology': topology,
+                       'serv_id': serv_id}
+        else:
+            COSD = self.services[serv_id]['service']['cosd']
+            functions = self.services[serv_id]['function']
+            cloud_services = self.services[serv_id]['cloud_service']
+
+            content = {'cosd': COSD,
+                       'functions': functions,
+                       'cloud_services': cloud_services,
+                       'topology': topology,
+                       'serv_id': serv_id}
 
         content['nap'] = {}
 
@@ -2448,6 +2474,9 @@ class ServiceLifecycleManager(ManoBasePlugin):
             for function in self.services[serv_id]['function']:
                 vnf_id = function['id']
                 function['vim_uuid'] = mapping[vnf_id]['vim']
+            for cloud_service in self.services[serv_id]['cloud_service']:
+                cs_id = cloud_service['id']
+                cloud_service['vim_uuid'] = mapping[cs_id]['vim']
 
         # Check if the placement does not contain any loops
         vim_list = tools.get_ordered_vim_list(self.services[serv_id])
