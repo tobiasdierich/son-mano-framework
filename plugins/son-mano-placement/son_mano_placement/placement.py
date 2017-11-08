@@ -137,8 +137,8 @@ class PlacementPlugin(ManoBasePlugin):
         if prop.app_id == self.name:
             return
 
-        LOG.info("Placement request received")
         content = yaml.load(payload)
+        LOG.info("Placement request for service: " + content['serv_id'])
         topology = content['topology']
         descriptor = content['nsd'] if 'nsd' in content else content['cosd']
         functions = content['functions']
@@ -153,7 +153,7 @@ class PlacementPlugin(ManoBasePlugin):
                              yaml.dump(response),
                              correlation_id=prop.correlation_id)
 
-        LOG.info("Response to placement request sent")
+        LOG.info("Placement response sent for service: " + content['serv_id'])
         LOG.info(response)
 
     def placement(self, descriptor, functions, cloud_services, topology):
@@ -204,6 +204,7 @@ class PlacementPlugin(ManoBasePlugin):
         if len(mapping.keys()) == len(functions) + len(cloud_services):
             return mapping
         else:
+            LOG.info("Placement was not possible, topology: " + str(topology))
             return None
 
 
