@@ -1054,8 +1054,37 @@ class ServiceLifecycleManager(ManoBasePlugin):
         """
         Deploy the cloud services of the complex service.
         """
-        msg = ": Deploy cloud services."
+        if len(self.services[serv_id]['function']) == 0:
+            msg = ": Service doesn't contain any cloud services. Skipping CS deploy."
+            LOG.info("Service " + serv_id + msg)
+            return
+
+        msg = ": Deploying cloud services."
         LOG.info("Service " + serv_id + msg)
+
+        cloud_services = self.services[serv_id]['cloud_service']
+        self.services[serv_id]['css_to_resp'] = len(cloud_services)
+
+        self.services[serv_id]['act_corr_id'] = []
+
+        for cloud_service in cloud_services:
+            corr_id = str(uuid.uuid4())
+            self.services[serv_id]['act_corr_id'].append(corr_id)
+
+            message = {}
+            message['csd'] = cloud_service['csd']
+            message['id'] = cloud_service['id']
+            message['vim_uuid'] = cloud_service['vim_uuid']
+            message['serv_id'] = serv_id
+
+            msg = ": Requesting the deployment of cs " + cloud_service['id']
+            LOG.info("Service " + serv_id + msg)
+            LOG.debug("Payload of request: " + str(message))
+            self.manoconn.call_async(self.resp_vnf_depl,
+                                     t.MANO_CS_DEPLOY,
+                                     yaml.dump(message),
+                                     correlation_id=corr_id)
+
         self.services[serv_id]['pause_chain'] = True
 
     def vnfs_start(self, serv_id):
