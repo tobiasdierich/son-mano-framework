@@ -1054,7 +1054,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
         """
         Deploy the cloud services of the complex service.
         """
-        if len(self.services[serv_id]['function']) == 0:
+        if len(self.services[serv_id]['cloud_service']) == 0:
             msg = ": Service doesn't contain any cloud services. Skipping CS deploy."
             LOG.info("Service " + serv_id + msg)
             return
