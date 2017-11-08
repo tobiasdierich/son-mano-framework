@@ -961,7 +961,6 @@ class ServiceLifecycleManager(ManoBasePlugin):
         if len(self.services[serv_id]['function']) == 0:
             msg = ": Service doesn't contain any functions. Skipping IA prepare."
             LOG.info("Service " + serv_id + msg)
-            self.start_next_task(serv_id)
             return
 
         msg = ": Requesting IA to prepare the infrastructure."
@@ -1023,7 +1022,6 @@ class ServiceLifecycleManager(ManoBasePlugin):
         if len(self.services[serv_id]['function']) == 0:
             msg = ": Service doesn't contain any functions. Skipping VNF deploy."
             LOG.info("Service " + serv_id + msg)
-            self.start_next_task(serv_id)
             return
 
         functions = self.services[serv_id]['function']
@@ -1068,7 +1066,6 @@ class ServiceLifecycleManager(ManoBasePlugin):
         if len(self.services[serv_id]['function']) == 0:
             msg = ": Service doesn't contain any functions. Skipping VNFs start."
             LOG.info("Service " + serv_id + msg)
-            self.start_next_task(serv_id)
             return
 
         msg = ": Triggering VNF start events"
