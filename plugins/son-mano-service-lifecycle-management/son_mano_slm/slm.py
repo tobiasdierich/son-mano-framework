@@ -467,6 +467,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
         add_schedule.append('ia_prepare')
         add_schedule.append('vnf_deploy')
         add_schedule.append('vnfs_start')
+        add_schedule.append('cs_deploy')
         add_schedule.append('vnf_chain')
         add_schedule.append('store_nsr')
         add_schedule.append('wan_configure')
@@ -957,6 +958,12 @@ class ServiceLifecycleManager(ManoBasePlugin):
         :param serv_id: The instance uuid of the service
         """
 
+        if len(self.services[serv_id]['function']) == 0:
+            msg = ": Service doesn't contain any functions. Skipping IA prepare."
+            LOG.info("Service " + serv_id + msg)
+            self.start_next_task(serv_id)
+            return
+
         msg = ": Requesting IA to prepare the infrastructure."
         LOG.info("Service " + serv_id + msg)
         # Build mapping message for IA
@@ -1013,6 +1020,12 @@ class ServiceLifecycleManager(ManoBasePlugin):
         This method triggeres the deployment of all the vnfs.
         """
 
+        if len(self.services[serv_id]['function']) == 0:
+            msg = ": Service doesn't contain any functions. Skipping VNF deploy."
+            LOG.info("Service " + serv_id + msg)
+            self.start_next_task(serv_id)
+            return
+
         functions = self.services[serv_id]['function']
         self.services[serv_id]['vnfs_to_resp'] = len(functions)
 
@@ -1039,11 +1052,24 @@ class ServiceLifecycleManager(ManoBasePlugin):
 
         self.services[serv_id]['pause_chain'] = True
 
+    def cs_deploy(self, serv_id):
+        """
+        Deploy the cloud services of the complex service.
+        """
+        msg = ": Deploy cloud services."
+        LOG.info("Service " + serv_id + msg)
+
     def vnfs_start(self, serv_id):
         """
         This method gives a trigger to the FLM for each VNF that needs
         a FSM start life cycle event.
         """
+        if len(self.services[serv_id]['function']) == 0:
+            msg = ": Service doesn't contain any functions. Skipping VNFs start."
+            LOG.info("Service " + serv_id + msg)
+            self.start_next_task(serv_id)
+            return
+
         msg = ": Triggering VNF start events"
         LOG.info("Service " + serv_id + msg)
         self.vnfs_csss(serv_id, 'start', t.MANO_START)

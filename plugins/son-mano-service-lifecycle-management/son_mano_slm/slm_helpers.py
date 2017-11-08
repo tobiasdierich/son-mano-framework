@@ -312,8 +312,10 @@ def get_ordered_vim_list(payload, which_graph=0):
     a way that any VIM is never addressed after the next one in the list
     """
 
-    def find_vim_based_on_vnf_id(vnf_id):
-        for vnf in payload['service']['nsd']['network_functions']:
+    # TODO: Add support for cloud services
+
+    def find_vim_based_on_vnf_id(vnf_id, descriptor, payload):
+        for vnf in descriptor['network_functions']:
             if vnf['vnf_id'] == vnf_id:
                 for func in payload['function']:
                     if vnf['vnf_version'] == func['vnfd']['version']:
@@ -325,8 +327,17 @@ def get_ordered_vim_list(payload, which_graph=0):
 
     nodes = {}
 
-    nsd = payload['service']['nsd']
-    forw_graph = nsd['forwarding_graphs'][which_graph]
+    descriptor = payload['service']['nsd'] if 'nsd' in payload['service'] else payload['service']['cosd']
+
+    if 'forwarding_graphs' not in descriptor:
+        vim_list = []
+        for func in payload['function']:
+            vim_list.append(func['vim_uuid'])
+        for cloud_service in payload['cloud_service']:
+            vim_list.append(cloud_service['vim_uuid'])
+        return vim_list
+
+    forw_graph = descriptor['forwarding_graphs'][which_graph]
     paths = forw_graph['network_forwarding_paths']
 
     for path in paths:
@@ -338,7 +349,7 @@ def get_ordered_vim_list(payload, which_graph=0):
                 pass
             else:
                 vnf_id = cp_ref.split(':')[0]
-                vim_uuid = find_vim_based_on_vnf_id(vnf_id)
+                vim_uuid = find_vim_based_on_vnf_id(vnf_id, descriptor)
                 if vim_uuid not in nodes.keys():
                     nodes[vim_uuid] = {"incoming": [],
                                        "outgoing": []}
