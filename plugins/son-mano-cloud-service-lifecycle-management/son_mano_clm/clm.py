@@ -22,12 +22,13 @@ partner consortium (www.sonata-nfv.eu).a
 """
 
 import logging
+import uuid
+import requests
 import yaml
 import time
 import os
 import json
 import concurrent.futures as pool
-# import psutil
 
 from sonmanobase.plugin import ManoBasePlugin
 import sonmanobase.messaging as messaging
@@ -225,6 +226,142 @@ class CloudServiceLifecycleManager(ManoBasePlugin):
             return
 
         LOG.info("Cloud Service instance create request received.")
+        message = yaml.load(payload)
+
+        # Extract the correlation id
+        corr_id = properties.correlation_id
+
+        cservice_id = message['id']
+
+        # Add the function to the ledger
+        self.add_cloud_service_to_ledger(message, corr_id, cservice_id, t.CS_DEPLOY)
+
+        # Schedule the tasks that the FLM should do for this request.
+        add_schedule = []
+
+        add_schedule.append("deploy_cs")
+        add_schedule.append("store_csr")
+        add_schedule.append("inform_slm_on_deployment")
+
+        self.cloud_services[cservice_id]['schedule'].extend(add_schedule)
+
+        msg = ": New instantiation request received. Instantiation started."
+        LOG.info("Cloud Service " + cservice_id + msg)
+        # Start the chain of tasks
+        self.start_next_task(cservice_id)
+
+        return self.cloud_services[cservice_id]['schedule']
+
+    def deploy_cs(self, cservice_id):
+        """
+        This methods requests the deployment of a cloud service
+        """
+
+        cloud_service = self.cloud_services[cservice_id]
+
+        outg_message = {}
+        outg_message['csd'] = cloud_service['csd']
+        outg_message['csd']['instance_uuid'] = cloud_service['id']
+        outg_message['vim_uuid'] = cloud_service['vim_uuid']
+        outg_message['service_instance_id'] = cloud_service['serv_id']
+
+        payload = yaml.dump(outg_message)
+
+        corr_id = str(uuid.uuid4())
+        self.cloud_services[cloud_service]['act_corr_id'] = corr_id
+
+        LOG.info("IA contacted for cloud service deployment.")
+        LOG.debug("Payload of request: " + payload)
+        # Contact the IA
+        self.manoconn.call_async(self.ia_deploy_response,
+                                 t.IA_DEPLOY,
+                                 payload,
+                                 correlation_id=corr_id)
+
+        # Pause the chain of tasks to wait for response
+        self.cloud_services[cloud_service]['pause_chain'] = True
+
+    def ia_deploy_response(self, ch, method, prop, payload):
+        """
+        This method handles the response from the IA on the
+        cs deploy request.
+        """
+
+        LOG.info("Response from IA on cs deploy call received.")
+        LOG.debug("Payload of request: " + str(payload))
+
+        inc_message = yaml.load(payload)
+
+        cservice_id = tools.cserviceid_from_corrid(self.cloud_services, prop.correlation_id)
+
+        self.cloud_services[cservice_id]['status'] = inc_message['request_status']
+
+        if inc_message['request_status'] == "COMPLETED":
+            LOG.info("Cs deployed correctly")
+            self.cloud_services[cservice_id]["ia_csr"] = inc_message["csr"]
+            self.cloud_services[cservice_id]["error"] = None
+
+        else:
+            LOG.info("Deployment failed: " + inc_message["message"])
+            self.cloud_services[cservice_id]["error"] = inc_message["message"]
+            topic = self.cloud_services[cservice_id]['topic']
+            self.clm_error(cservice_id, topic)
+            return
+
+        self.start_next_task(cservice_id)
+
+    def store_csr(self, cservice_id):
+        """
+        This method stores the csr in the repository
+        """
+
+        cloud_service = self.cloud_services[cservice_id]
+
+        # Build the record
+        csr = tools.build_csr(cloud_service['ia_csr'], cloud_service['csd'])
+        self.cloud_services[cservice_id]['csr'] = csr
+        LOG.info(yaml.dump(csr))
+
+        # Store the record
+        url = t.CSR_REPOSITORY_URL + 'cs-instances'
+        header = {'Content-Type': 'application/json'}
+        csr_response = requests.post(url,
+                                      data=json.dumps(csr),
+                                      headers=header,
+                                      timeout=1.0)
+        LOG.info("Storing CSR on " + url)
+        LOG.debug("CSR: " + str(csr))
+
+        if csr_response.status_code == 200:
+            LOG.info("CSR storage accepted.")
+        # If storage fails, add error code and message to rply to gk
+        else:
+            error = {'http_code': csr_response.status_code,
+                     'message': csr_response.json()}
+            self.cloud_services[cservice_id]['error'] = error
+            LOG.info('CSR to repo failed: ' + str(error))
+
+        return
+
+    def inform_slm_on_deployment(self, cservice_id):
+        """
+        In this method, the SLM is contacted to inform on the cs
+        deployment.
+        """
+        LOG.info("Informing the SLM of the status of the cs deployment")
+
+        cloud_service = self.functions[cservice_id]
+
+        message = {}
+        message["csr"] = cloud_service["csr"]
+        message["status"] = cloud_service["status"]
+        message["error"] = cloud_service["error"]
+
+        corr_id = self.cloud_services[cservice_id]['orig_corr_id']
+        self.manoconn.notify(t.CS_DEPLOY,
+                             yaml.dump(message),
+                             correlation_id=corr_id)
+
 
 ###########
 # CLM tasks
@@ -294,7 +431,6 @@ class CloudServiceLifecycleManager(ManoBasePlugin):
         if 'csd' in payload.keys():
             csd = payload['csd']
         else:
-            # TODO: retrieve VNFD from CAT based on cserver_id
             csd = {}
         self.cloud_services[cserver_id]['csd'] = csd
 

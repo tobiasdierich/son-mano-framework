@@ -27,3 +27,80 @@ This contains helper functions for `clm.py`.
 import requests
 import uuid
 import yaml
+
+def cserviceid_from_corrid(ledger, corr_id):
+    """
+    This method returns the cloud service uuid based on a correlation id.
+    It is used for responses from different modules that use the
+    correlation id as reference instead of the cloud service id.
+
+    :param serv_dict: The ledger of functions
+    :param corr_id: The correlation id
+    """
+
+    for cservice_id in ledger.keys():
+        if isinstance(ledger[cservice_id]['act_corr_id'], list):
+            if str(corr_id) in ledger[cservice_id]['act_corr_id']:
+                break
+        else:
+            if ledger[cservice_id]['act_corr_id'] == str(corr_id):
+                break
+
+    return cservice_id
+
+def build_csr(ia_csr, csd):
+    """
+    This method builds the CSRs. CSRs are built from the stripped CSRs
+    returned by the Infrastructure Adaptor (IA), combining it with the
+    provided CSD.
+    """
+
+    csr = {}
+    # csd base fields
+    csr['descriptor_version'] = ia_csr['descriptor_version']
+    csr['id'] = ia_csr['id']
+    # Building the csr makes it the first version of this csr.
+    csr['version'] = '1'
+    csr['status'] = ia_csr['status']
+    csr['descriptor_reference'] = ia_csr['descriptor_reference']
+
+    # virtual_deployment_units
+    csr['virtual_deployment_units'] = []
+    for ia_vdu in ia_csr['virtual_deployment_units']:
+        csd_vdu = get_csd_vdu_by_reference(csd, ia_vdu['vdu_reference'])
+
+        vdu = {}
+        # vdu info returned by IA
+        # mandatofy info
+        vdu['id'] = ia_vdu['id']
+        vdu['resource_requirements'] = csd_vdu['resource_requirements']
+
+        # vdu optional info
+        if 'vdu_reference' in ia_vdu:
+            vdu['vdu_reference'] = ia_vdu['vdu_reference']
+        if 'number_of_instances' in ia_vdu:
+            vdu['number_of_instances'] = ia_vdu['number_of_instances']
+
+        if csd_vdu is not None and 'monitoring_parameters' in csd_vdu:
+            vdu['monitoring_parameters'] = csd_vdu['monitoring_parameters']
+
+        csr['virtual_deployment_units'].append(vdu)
+
+    # connection points && virtual links (optional)
+    if 'connection_points' in ia_csr:
+        csr['connection_points'] = ia_csr['connection_points']
+    if 'virtual_links' in csd:
+        csr['virtual_links'] = csd['virtual_links']
+
+    # lifecycle_events (optional)
+    if 'lifecycle_events' in csd:
+        csr['lifecycle_events'] = csd['lifecycle_events']
+
+    return csr
+
+def get_csd_vdu_by_reference(csd, vdu_reference):
+    if 'virtual_deployment_units' in csd:
+        for csd_vdu in csd['virtual_deployment_units']:
+            if csd_vdu['id'] in vdu_reference:
+                return csd_vdu
+    return None

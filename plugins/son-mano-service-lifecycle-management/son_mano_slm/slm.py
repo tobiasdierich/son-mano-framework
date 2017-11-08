@@ -1080,12 +1080,46 @@ class ServiceLifecycleManager(ManoBasePlugin):
             msg = ": Requesting the deployment of cs " + cloud_service['id']
             LOG.info("Service " + serv_id + msg)
             LOG.debug("Payload of request: " + str(message))
-            self.manoconn.call_async(self.resp_vnf_depl,
+            self.manoconn.call_async(self.resp_cs_depl,
                                      t.MANO_CS_DEPLOY,
                                      yaml.dump(message),
                                      correlation_id=corr_id)
 
         self.services[serv_id]['pause_chain'] = True
+
+    def resp_cs_depl(self, ch, method, prop, payload):
+        """
+        This method handles a response from the FLM to a cs deploy request.
+        """
+        message = yaml.load(payload)
+
+        # Retrieve the service uuid
+        serv_id = tools.servid_from_corrid(self.services, prop.correlation_id)
+        msg = ": Message received from CLM on CS deploy call."
+        LOG.info("Service " + serv_id + msg)
+
+        # Inform GK if CS deployment failed
+        if message['error'] is not None:
+
+            LOG.info("Service " + serv_id + ": Deployment of CS failed")
+            LOG.debug("Message: " + str(message))
+            self.error_handling(serv_id, t.GK_CREATE, message['error'])
+
+        else:
+            LOG.info("Service " + serv_id + ": CS correctly Deployed.")
+            for cloud_service in self.services[serv_id]['cloud_service']:
+                if cloud_service['id'] == message['csr']['id']:
+                    cloud_service['csr'] = message['csr']
+                    LOG.info("Added csr for inst: " + message['csr']['id'])
+
+        css_to_depl = self.services[serv_id]['css_to_resp'] - 1
+        self.services[serv_id]['css_to_resp'] = css_to_depl
+
+        # Only continue if all css are deployed
+        if css_to_depl == 0:
+            self.services[serv_id]['act_corr_id'] = None
+            self.start_next_task(serv_id)
+
 
     def vnfs_start(self, serv_id):
         """
