@@ -1058,6 +1058,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
         """
         msg = ": Deploy cloud services."
         LOG.info("Service " + serv_id + msg)
+        self.services[serv_id]['pause_chain'] = True
 
     def vnfs_start(self, serv_id):
         """
