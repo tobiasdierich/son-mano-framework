@@ -18,7 +18,7 @@ This work has been performed in the framework of the SONATA project,
 funded by the European Commission under Grant number 671517 through
 the Horizon 2020 and 5G-PPP programmes. The authors would like to
 acknowledge the contributions of their colleagues of the SONATA
-partner consortium (www.sonata-nfv.eu).a
+partner consortium (www.sonata-nfv.eu).
 """
 
 import logging
@@ -268,7 +268,7 @@ class CloudServiceLifecycleManager(ManoBasePlugin):
         payload = yaml.dump(outg_message)
 
         corr_id = str(uuid.uuid4())
-        self.cloud_services[cloud_service]['act_corr_id'] = corr_id
+        self.cloud_services[cservice_id]['act_corr_id'] = corr_id
 
         LOG.info("IA contacted for cloud service deployment.")
         LOG.debug("Payload of request: " + payload)
@@ -279,7 +279,7 @@ class CloudServiceLifecycleManager(ManoBasePlugin):
                                  correlation_id=corr_id)
 
         # Pause the chain of tasks to wait for response
-        self.cloud_services[cloud_service]['pause_chain'] = True
+        self.cloud_services[cservice_id]['pause_chain'] = True
 
     def ia_deploy_response(self, ch, method, prop, payload):
         """
@@ -334,7 +334,7 @@ class CloudServiceLifecycleManager(ManoBasePlugin):
 
         if csr_response.status_code == 200:
             LOG.info("CSR storage accepted.")
-        # If storage fails, add error code and message to rply to gk
+        # If storage fails, add error code and message to reply to gk
         else:
             error = {'http_code': csr_response.status_code,
                      'message': csr_response.json()}
@@ -350,7 +350,7 @@ class CloudServiceLifecycleManager(ManoBasePlugin):
         """
         LOG.info("Informing the SLM of the status of the cs deployment")
 
-        cloud_service = self.functions[cservice_id]
+        cloud_service = self.cloud_services[cservice_id]
 
         message = {}
         message["csr"] = cloud_service["csr"]
