@@ -117,7 +117,9 @@ CAT_PORT = c.port
 CAT_BASE_URL = c.scheme + "://" + c.hostname + ":" + str(CAT_PORT)
 
 NSR_REPOSITORY_URL = CAT_BASE_URL + "/records/nsr/"
+COSR_REPOSITORY_URL = CAT_BASE_URL + "/records/cosr/"
 VNFR_REPOSITORY_URL = CAT_BASE_URL + "/records/vnfr/"
+CSR_REPOSITORY_URL = CAT_BASE_URL + "/records/csr/"
 
 # With Monitoring Manager
 # TODO: Secure this get against failure

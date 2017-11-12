@@ -227,6 +227,84 @@ def build_nsr(request_status, nsd, vnfr_ids, service_instance_id):
     return nsr
 
 
+def build_cosr(request_status, cosd, vnfr_ids, csr_ids, service_instance_id):
+    """
+    This method builds the whole NSR from the payload (stripped nsr and vnfrs)
+    returned by the Infrastructure Adaptor (IA).
+    """
+
+    cosr = {}
+    # cosr mandatory fields
+    cosr['descriptor_version'] = 'cosr-schema-01'
+    cosr['id'] = service_instance_id
+    cosr['status'] = request_status
+    # Building the cosr makes it the first version of this cosr
+    cosr['version'] = '1'
+    cosr['descriptor_reference'] = cosd['uuid']
+
+    # network functions
+    cosr['network_functions'] = []
+    for vnfr_id in vnfr_ids:
+        function = {}
+        function['vnfr_id'] = vnfr_id
+        cosr['network_functions'].append(function)
+
+    # cloud services
+    cosr['cloud_services'] = []
+    for csr_id in csr_ids:
+        cloud_service = {}
+        cloud_service['csr_id'] = csr_id
+        cosr['cloud_services'].append(cloud_service)
+
+    # virtual links
+    if 'virtual_links' in cosd:
+        cosr['virtual_links'] = []
+        for virtual_link in cosd['virtual_links']:
+            vlink = {}
+            vlink['id'] = virtual_link['id']
+            vlink['connectivity_type'] = virtual_link['connectivity_type']
+            vlink['connection_points_reference'] = virtual_link['connection_points_reference']
+            cosr['virtual_links'].append(vlink)
+
+    # forwarding graphs
+    if 'forwarding_graphs' in cosd:
+        cosr['forwarding_graphs'] = []
+        for forwarding_graph in cosd['forwarding_graphs']:
+            cosr['forwarding_graphs'].append(forwarding_graph)
+
+    # lifecycle events
+    if 'lifecycle_events' in cosd:
+        cosr['lifecycle_events'] = []
+        for lifecycle_event in cosd['lifecycle_events']:
+            cosr['lifecycle_events'].append(lifecycle_event)
+
+    # vnf_dependency
+    if 'vnf_dependency' in cosd:
+        cosr['vnf_dependency'] = []
+        for vd in cosd['vnf_dependency']:
+            cosr['vnf_dependency'].append(vd)
+
+    # services_dependency
+    if 'services_dependency' in cosd:
+        cosr['services_dependency'] = []
+        for sd in cosd['services_dependency']:
+            cosr['services_dependency'].append(sd)
+
+    # monitoring_parameters
+    if 'monitoring_parameters' in cosd:
+        cosr['monitoring_parameters'] = []
+        for mp in cosd['monitoring_parameters']:
+            cosr['monitoring_parameters'].append(mp)
+
+    # auto_scale_policy
+    if 'auto_scale_policy' in cosd:
+        cosr['auto_scale_policy'] = []
+        for asp in cosd['auto_scale_policy']:
+            cosr['monitoring_parameters'].append(asp)
+
+    return cosr
+
+
 def get_platform_public_key(url):
     """
     This method gets the public key from the platform

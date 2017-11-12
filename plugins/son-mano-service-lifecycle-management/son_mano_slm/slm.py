@@ -1117,6 +1117,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
 
         # Only continue if all css are deployed
         if css_to_depl == 0:
+            LOG.info("Deployment of CSs completed.")
             self.services[serv_id]['act_corr_id'] = None
             self.start_next_task(serv_id)
 
@@ -1515,6 +1516,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
     def store_nsr(self, serv_id):
 
         # TODO: get request_status from response from IA on chain
+        is_nsd = 'nsd' in self.services[serv_id]['service']
         request_status = 'normal operation'
 
         if request_status == 'normal operation':
@@ -1550,37 +1552,78 @@ class ServiceLifecycleManager(ManoBasePlugin):
                     self.error_handling(serv_id, t.GK_CREATE, error)
                     return
 
-        nsd = self.services[serv_id]['service']['nsd']
+            LOG.info("Service " + serv_id + ": Update status of the CSR")
+            for cloud_service in self.services[serv_id]['cloud_service']:
+                cloud_service['csr']['status'] = "normal operation"
+                cloud_service['csr']['version'] = '1'
+
+                url = t.CSR_REPOSITORY_URL + 'cs-instances/' + cloud_service['id']
+                LOG.info("Service " + serv_id + ": URL CSR update: " + url)
+
+                error = None
+                try:
+                    header = {'Content-Type': 'application/json'}
+                    csr_resp = requests.put(url,
+                                             data=json.dumps(cloud_service['csr']),
+                                             headers=header,
+                                             timeout=1.0)
+                    csr_resp_json = str(csr_resp.json())
+                    if (csr_resp.status_code == 200):
+                        msg = ": CSR update accepted for " + cloud_service['id']
+                        LOG.info("Service " + serv_id + msg)
+                    else:
+                        msg = ": CSR update not accepted: " + csr_resp_json
+                        LOG.info("Service " + serv_id + msg)
+                        error = {'http_code': csr_resp.status_code,
+                                 'message': csr_resp_json}
+                except:
+                    error = {'http_code': '0',
+                             'message': 'Timeout when contacting CSR repo'}
+
+                if error is not None:
+                    self.error_handling(serv_id, t.GK_CREATE, error)
+                    return
+
+        descriptor = self.services[serv_id]['service']['nsd'] if is_nsd else self.services[serv_id]['service']['cosd']
 
         vnfr_ids = []
         for function in self.services[serv_id]['function']:
             vnfr_ids.append(function['id'])
 
-        nsr = tools.build_nsr(request_status, nsd, vnfr_ids, serv_id)
-        LOG.debug("NSR to be stored: " + yaml.dump(nsr))
+        csr_ids = []
+        for cloud_service in self.services[serv_id]['cloud_service']:
+            csr_ids.append(cloud_service['id'])
+
+        if is_nsd:
+            record = tools.build_nsr(request_status, descriptor, vnfr_ids, serv_id)
+        else:
+            record = tools.build_cosr(request_status, descriptor, vnfr_ids, csr_ids, serv_id)
+
+        LOG.debug("Record to be stored: " + yaml.dump(record))
 
         error = None
 
         try:
             header = {'Content-Type': 'application/json'}
-            nsr_resp = requests.post(t.NSR_REPOSITORY_URL + 'ns-instances',
-                                     data=json.dumps(nsr),
+            url = t.NSR_REPOSITORY_URL + 'ns-instances' if is_nsd else t.COSR_REPOSITORY_URL + 'cos-instances'
+            record_resp = requests.post(url,
+                                     data=json.dumps(record),
                                      headers=header,
                                      timeout=1.0)
-            nsr_resp_json = nsr_resp.json()
-            if (nsr_resp.status_code == 200):
-                msg = ": NSR accepted and stored for instance " + serv_id
+            record_resp_json = record_resp.json()
+            if (record_resp.status_code == 200):
+                msg = ": Record accepted and stored for instance " + serv_id
                 LOG.info("Service " + serv_id + msg)
             else:
-                msg = ": NSR not accepted: " + str(nsr_resp_json)
+                msg = ": Record not accepted: " + str(record_resp_json)
                 LOG.info("Service " + serv_id + msg)
-                error = {'http_code': nsr_resp.status_code,
-                         'message': nsr_resp_json}
+                error = {'http_code': record_resp.status_code,
+                         'message': record_resp_json}
         except:
             error = {'http_code': '0',
-                     'message': 'Timeout when contacting NSR repo'}
+                     'message': 'Timeout when contacting record repo'}
 
-        self.services[serv_id]['service']['nsr'] = nsr
+        self.services[serv_id]['service']['nsr' if is_nsd else 'cosr'] = record
 
         if error is not None:
             self.error_handling(serv_id, t.GK_CREATE, error)
@@ -1591,6 +1634,11 @@ class ServiceLifecycleManager(ManoBasePlugin):
         """
         This method instructs the IA how to chain the functions together.
         """
+
+        # We're gonna skip chaining for now if we're handling a complex service.
+        # TODO: Implement chaining for complex services
+        if 'cosd' in self.services[serv_id]['service']:
+            return
 
         corr_id = str(uuid.uuid4())
         self.services[serv_id]['act_corr_id'] = corr_id
