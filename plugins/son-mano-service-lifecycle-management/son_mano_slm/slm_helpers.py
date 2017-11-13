@@ -594,13 +594,15 @@ def get_vnfd_by_reference(gk_request, vnfd_reference):
     return None
 
 
-def build_monitoring_message(service, functions):
+def build_monitoring_message(service, functions, cloud_services):
     """
     This method builds the message for the Monitoring Manager.
     """
 
-    nsd = service['nsd']
-    nsr = service['nsr']
+    is_nsd = 'nsd' in service
+
+    descriptor = service['nsd'] if is_nsd else service['cosd']
+    record = service['nsr'] if is_nsd else service['cosr']
 
     def get_associated_monitoring_rule(vnfd, monitoring_parameter_name):
         """
@@ -629,9 +631,9 @@ def build_monitoring_message(service, functions):
     service = {}
 
     # add nsd fields
-    service['sonata_srv_id'] = nsr['id']
-    service['name'] = nsd['name']
-    service['description'] = nsd['description']
+    service['sonata_srv_id'] = record['id']
+    service['name'] = descriptor['name']
+    service['description'] = descriptor['description']
     service['host_id'] = None
     # TODO add pop_id and sonata_usr_id
     service['pop_id'] = None
@@ -639,6 +641,7 @@ def build_monitoring_message(service, functions):
 
     message['service'] = service
     message['functions'] = []
+    message['cloud_services'] = []
     message['rules'] = []
 
     # add vnf information
@@ -726,5 +729,7 @@ def build_monitoring_message(service, functions):
                             r['notification_type'] = notification_type_mapping[notification['type']]
                             # add rule to message
                             message['rules'].append(r)
+
+    # TODO: Add support for cloud services
 
     return message

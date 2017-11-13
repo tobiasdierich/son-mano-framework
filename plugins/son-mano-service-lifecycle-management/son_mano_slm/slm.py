@@ -2142,8 +2142,9 @@ class ServiceLifecycleManager(ManoBasePlugin):
         LOG.info("Service " + serv_id + ": Setting up Monitoring Manager")
         service = self.services[serv_id]['service']
         functions = self.services[serv_id]['function']
+        cloud_services = self.services[serv_id]['cloud_service']
 
-        mon_mess = tools.build_monitoring_message(service, functions)
+        mon_mess = tools.build_monitoring_message(service, functions, cloud_services)
 
         LOG.debug("Monitoring message created: " + yaml.dump(mon_mess))
 
@@ -2183,16 +2184,25 @@ class ServiceLifecycleManager(ManoBasePlugin):
         """
         LOG.info("Service " + serv_id + ": Reporting result to GK")
 
+        is_nsd = 'nsd' in self.services[serv_id]['service']
+
         message = {}
 
         message['status'] = 'READY'
         message['error'] = None
         message['timestamp'] = time.time()
-        message['nsr'] = self.services[serv_id]['service']['nsr']
+        if is_nsd:
+            message['nsr'] = self.services[serv_id]['service']['nsr']
+        else:
+            message['cosr'] = self.services[serv_id]['service']['cosr']
         message['vnfrs'] = []
+        message['csrs'] = []
 
         for function in self.services[serv_id]['function']:
             message['vnfrs'].append(function['vnfr'])
+
+        for cloud_service in self.services[serv_id]['cloud_service']:
+            message['csrs'].append(cloud_service['csr'])
 
         LOG.debug("Payload of message " + str(message))
 
