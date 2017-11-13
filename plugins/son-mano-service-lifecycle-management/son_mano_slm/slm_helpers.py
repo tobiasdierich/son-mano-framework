@@ -633,7 +633,7 @@ def build_monitoring_message(service, functions, cloud_services):
     # add nsd fields
     service['sonata_srv_id'] = record['id']
     service['name'] = descriptor['name']
-    service['description'] = descriptor['description']
+    service['description'] = descriptor['description'] if 'description' in descriptor else None
     service['host_id'] = None
     # TODO add pop_id and sonata_usr_id
     service['pop_id'] = None
