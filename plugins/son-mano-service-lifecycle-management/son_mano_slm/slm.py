@@ -2346,7 +2346,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
         def request_returned_with_error(request):
             code = str(request['error'])
             mess = str(request['content'])
-            LOG.info("Retrieving of NSR failed: " + code + " " + mess)
+            LOG.info("Retrieving of record failed: " + code + " " + mess)
             # TODO: get out of this
 
         # Update the token of the SLM
@@ -2359,33 +2359,43 @@ class ServiceLifecycleManager(ManoBasePlugin):
         self.services[serv_id]['service'] = {}
 
         # Retrieve the service record based on the service instance id
+        is_ns = True
         base = t.NSR_REPOSITORY_URL + "ns-instances/"
         request = tools.getRestData(base, serv_id)
 
         if request['error'] is not None:
-            request_returned_with_error(request)
-            return
-
-        self.services[serv_id]['service']['nsr'] = request['content']
-        LOG.info("Service " + serv_id + ": Recreating ledger: NSR retrieved.")
-
-        # Retrieve the NSD
-        nsr = self.services[serv_id]['service']['nsr']
-        nsd_uuid = nsr['descriptor_reference']
-
-        request = tools.getRestData(t.GK_SERVICES, nsd_uuid, token=self.token)
+            # Try COSRs
+            LOG.info("NSR not found, trying COSR")
+            is_ns = False
+            base = t.COSR_REPOSITORY_URL + "cos-instances/"
+            request = tools.getRestData(base, serv_id)
 
         if request['error'] is not None:
             request_returned_with_error(request)
             return
 
-        self.services[serv_id]['service']['nsd'] = request['content']['nsd']
-        LOG.info("Service " + serv_id + ": Recreating ledger: NSD retrieved.")
+        self.services[serv_id]['service']['nsr' if is_ns else 'cosr'] = request['content']
+        LOG.info("Service " + serv_id + ": Recreating ledger: Record retrieved.")
+
+        # Retrieve the NSD
+        record = self.services[serv_id]['service']['nsr' if is_ns else 'cosr']
+        descriptor_uuid = record['descriptor_reference']
+
+        url = t.GK_SERVICES if is_ns else t.GK_COMPLEX_SERVICES
+        request = tools.getRestData(url, descriptor_uuid, token=self.token)
+
+        if request['error'] is not None:
+            request_returned_with_error(request)
+            return
+
+        self.services[serv_id]['service']['nsd' if is_ns else 'cosd'] = request['content']['nsd' if is_ns else 'cosd']
+        LOG.info("Service " + serv_id + ": Recreating ledger: Descriptor retrieved.")
 
         # Retrieve the function records based on the service record
         self.services[serv_id]['function'] = []
-        nsr = self.services[serv_id]['service']['nsr']
-        for vnf in nsr['network_functions']:
+        self.services[serv_id]['cloud_service'] = []
+        record = self.services[serv_id]['service']['nsr' if is_ns else 'cosr']
+        for vnf in record['network_functions']:
             base = t.VNFR_REPOSITORY_URL + "vnf-instances/"
             request = tools.getRestData(base, vnf['vnfr_id'])
 
@@ -2417,12 +2427,44 @@ class ServiceLifecycleManager(ManoBasePlugin):
             vnf['vnfd'] = req['content']['vnfd']
             LOG.info("Service " + serv_id + ": Recreate: VNFD retrieved.")
 
-        LOG.info("Serice " +
+        for cloud_service in record['cloud_services']:
+            base = t.CSR_REPOSITORY_URL + "cs-instances/"
+            request = tools.getRestData(base, cloud_service['csr_id'])
+
+            if request['error'] is not None:
+                request_returned_with_error(request)
+                return
+
+            new_cloud_service = {'id': cloud_service['csr_id'],
+                            'start': {'trigger': True, 'payload': {}},
+                            'stop': {'trigger': True, 'payload': {}},
+                            'configure': {'trigger': True, 'payload': {}},
+                            'scale': {'trigger': True, 'payload': {}},
+                            'csr': request['content']}
+
+            self.services[serv_id]['cloud_service'].append(new_cloud_service)
+            msg = ": Recreating ledger: CSR retrieved."
+            LOG.info("Service " + serv_id + msg)
+
+        # Retrieve the CSDs based on the cloud service records
+        for cloud_service in self.services[serv_id]['cloud_service']:
+            csd_id = cloud_service['csr']['descriptor_reference']
+
+            req = tools.getRestData(t.GK_CLOUD_SERVICES, csd_id, token=self.token)
+
+            if req['error'] is not None:
+                request_returned_with_error(req)
+                return
+
+            cloud_service['csd'] = req['content']['csd']
+            LOG.info("Service " + serv_id + ": Recreate: CSD retrieved.")
+
+        LOG.info("Service " +
                  serv_id + ": Recreating ledger: VNFDs retrieved.")
 
         # Retrieve the deployed SSMs based on the NSD
-        nsd = self.services[serv_id]['service']['nsd']
-        ssm_dict = tools.get_sm_from_descriptor(nsd)
+        descriptor = self.services[serv_id]['service']['nsd' if is_ns else 'cosd']
+        ssm_dict = tools.get_sm_from_descriptor(descriptor)
 
         self.services[serv_id]['service']['ssm'] = ssm_dict
 
@@ -2444,6 +2486,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
         self.services[serv_id]['infrastructure'] = {}
         self.services[serv_id]['task_log'] = []
         self.services[serv_id]['vnfs_to_resp'] = 0
+        self.services[serv_id]['css_to_resp'] = 0
         self.services[serv_id]['pause_chain'] = False
         self.services[serv_id]['error'] = None
 
