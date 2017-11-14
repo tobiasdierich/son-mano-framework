@@ -958,11 +958,6 @@ class ServiceLifecycleManager(ManoBasePlugin):
         :param serv_id: The instance uuid of the service
         """
 
-        if len(self.services[serv_id]['function']) == 0:
-            msg = ": Service doesn't contain any functions. Skipping IA prepare."
-            LOG.info("Service " + serv_id + msg)
-            return
-
         msg = ": Requesting IA to prepare the infrastructure."
         LOG.info("Service " + serv_id + msg)
         # Build mapping message for IA
@@ -1000,6 +995,19 @@ class ServiceLifecycleManager(ManoBasePlugin):
                     content['image_md5'] = vdu['vm_image_md5']
 
                 IA_mapping['vim_list'][index]['vm_images'].append(content)
+
+        for cloud_service in self.services[serv_id]['cloud_service']:
+            vim_uuid = cloud_service['vim_uuid']
+
+            # Add VIM uuid if new
+            new_vim = True
+            for vim in IA_mapping['vim_list']:
+                if vim['uuid'] == vim_uuid:
+                    new_vim = False
+
+            if new_vim:
+                IA_mapping['vim_list'].append({'uuid': vim_uuid,
+                                               'vm_images': []})
 
         # Add correlation id to the ledger for future reference
         corr_id = str(uuid.uuid4())
