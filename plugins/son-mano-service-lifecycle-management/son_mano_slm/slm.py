@@ -1141,6 +1141,12 @@ class ServiceLifecycleManager(ManoBasePlugin):
         This method gives a trigger to the FLM for each VNF that needs
         a FSM stop life cycle event.
         """
+
+        if len(self.services[serv_id]['function']) == 0:
+            msg = ": Service doesn't contain any functions. Skipping VNFs stop."
+            LOG.info("Service " + serv_id + msg)
+            return
+
         msg = ": Triggering VNF stop events"
         LOG.info("Service " + serv_id + msg)
         self.vnfs_csss(serv_id, 'stop', t.MANO_STOP)
