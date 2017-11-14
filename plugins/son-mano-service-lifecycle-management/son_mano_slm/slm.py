@@ -2052,6 +2052,8 @@ class ServiceLifecycleManager(ManoBasePlugin):
                                  yaml.dump(message),
                                  correlation_id=corr_id)
 
+        self.services[serv_id]['pause_chain'] = True
+
     def wan_deconfigure_response(self, ch, method, prop, payload):
         """
         This method handles responses on the wan_deconfigure call
@@ -2460,7 +2462,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
             LOG.info("Service " + serv_id + ": Recreate: CSD retrieved.")
 
         LOG.info("Service " +
-                 serv_id + ": Recreating ledger: VNFDs retrieved.")
+                 serv_id + ": Recreating ledger: VNFDs and CSDs retrieved.")
 
         # Retrieve the deployed SSMs based on the NSD
         descriptor = self.services[serv_id]['service']['nsd' if is_ns else 'cosd']
