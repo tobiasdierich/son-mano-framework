@@ -1715,7 +1715,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
         self.services[serv_id]['act_corr_id'] = corr_id
 
         payload = json.dumps({'service_instance_id': serv_id})
-        self.manoconn.call_async(self.IA_termination_response,
+        self.manoconn.call_async(self.IA_unchain_response,
                                  t.IA_DECONF_CHAIN,
                                  payload,
                                  correlation_id=corr_id)
