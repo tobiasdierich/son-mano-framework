@@ -1904,42 +1904,44 @@ class ServiceLifecycleManager(ManoBasePlugin):
 
         error = None
 
-        nsr = self.services[serv_id]['service']['nsr']
+        is_nsd = 'nsr' in self.services[serv_id]['service']
+
+        record = self.services[serv_id]['service']['nsr' if is_nsd else 'cosr']
 
         # Updating the version number
-        old_version = int(nsr['version'])
+        old_version = int(record['version'])
         cur_version = old_version + 1
-        nsr['version'] = str(cur_version)
+        record['version'] = str(cur_version)
 
         # Updating the record
-        nsr_id = serv_id
-        nsr['status'] = "terminated"
-        nsr['id'] = nsr_id
-        del nsr["uuid"]
-        del nsr["updated_at"]
-        del nsr["created_at"]
+        record_id = serv_id
+        record['status'] = "terminated"
+        record['id'] = record_id
+        del record["uuid"]
+        del record["updated_at"]
+        del record["created_at"]
 
         # Put it
-        url = t.NSR_REPOSITORY_URL + 'ns-instances/' + nsr_id
+        url = t.NSR_REPOSITORY_URL + 'ns-instances/' + record_id if is_nsd else t.COSR_REPOSITORY_URL + 'cos-instances/' + record_id
         header = {'Content-Type': 'application/json'}
 
-        LOG.info("Service " + serv_id + ": NSR update: " + url)
+        LOG.info("Service " + serv_id + ": Record update: " + url)
 
         try:
-            nsr_resp = requests.put(url,
-                                    data=json.dumps(nsr),
+            record_resp = requests.put(url,
+                                    data=json.dumps(record),
                                     headers=header,
                                     timeout=1.0)
-            nsr_resp_json = str(nsr_resp.json())
+            record_resp_json = str(record_resp.json())
 
-            if (nsr_resp.status_code == 200):
-                msg = ": NSR update accepted for " + nsr_id
+            if (record_resp.status_code == 200):
+                msg = ": Record update accepted for " + record_id
                 LOG.info("Service " + serv_id + msg)
             else:
-                msg = ": NSR update not accepted: " + nsr_resp_json
+                msg = ": Record update not accepted: " + record_resp_json
                 LOG.info("Service " + serv_id + msg)
-                error = {'http_code': nsr_resp.status_code,
-                         'message': nsr_resp_json}
+                error = {'http_code': record_resp.status_code,
+                         'message': record_resp_json}
         except:
             error = {'http_code': '0',
                      'message': 'Timeout when contacting NSR repo'}
@@ -1981,6 +1983,47 @@ class ServiceLifecycleManager(ManoBasePlugin):
                     LOG.info("Service " + serv_id + msg)
                     error = {'http_code': vnfr_resp.status_code,
                              'message': vnfr_resp_json}
+            except:
+                error = {'http_code': '0',
+                         'message': 'Timeout when contacting VNFR repo'}
+
+        for cloud_service in self.services[serv_id]['cloud_service']:
+            csr = cloud_service["csr"]
+            csr_id = csr["uuid"]
+
+            # Updating version number
+            old_version = int(csr['version'])
+            cur_version = old_version + 1
+            csr['version'] = str(cur_version)
+
+            # Updating the record
+            csr['status'] = "terminated"
+            csr['id'] = csr_id
+            del csr["uuid"]
+            del csr["updated_at"]
+            del csr["created_at"]
+
+            # Put it
+            url = t.CSR_REPOSITORY_URL + 'cs-instances/' + csr_id
+            header = {'Content-Type': 'application/json'}
+
+            LOG.info("Service " + serv_id + ": CSR update: " + url)
+
+            try:
+                csr_resp = requests.put(url,
+                                         data=json.dumps(csr),
+                                         headers=header,
+                                         timeout=1.0)
+                csr_resp_json = str(csr_resp.json())
+
+                if (csr_resp.status_code == 200):
+                    msg = ": CSR update accepted for " + csr_id
+                    LOG.info("Service " + serv_id + msg)
+                else:
+                    msg = ": CSR update not accepted: " + csr_resp_json
+                    LOG.info("Service " + serv_id + msg)
+                    error = {'http_code': csr_resp.status_code,
+                             'message': csr_resp_json}
             except:
                 error = {'http_code': '0',
                          'message': 'Timeout when contacting VNFR repo'}
