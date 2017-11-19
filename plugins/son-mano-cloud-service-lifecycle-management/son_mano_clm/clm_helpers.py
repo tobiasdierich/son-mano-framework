@@ -78,6 +78,9 @@ def build_csr(ia_csr, csd):
         vdu['service_type'] = csd_vdu['service_type']
         vdu['service_ports'] = csd_vdu['service_ports']
 
+        if 'environment' in csd_vdu:
+            vdu['environment'] = csd_vdu['environment']
+
         # vdu optional info
         if 'vdu_reference' in ia_vdu:
             vdu['vdu_reference'] = ia_vdu['vdu_reference']
