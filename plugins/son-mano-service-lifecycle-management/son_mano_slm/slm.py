@@ -2175,17 +2175,25 @@ class ServiceLifecycleManager(ManoBasePlugin):
         This method instructs the monitoring manager to start monitoring
         """
 
+        is_nsd = 'nsd' in self.services[serv_id]['service']
+
         # Configure the Monitoring SSM, if present
         if 'monitor' in self.services[serv_id]['service']['ssm'].keys():
             LOG.info("Service " + serv_id + ": Sending descriptors to Mon SSM")
             message = {}
-            message['nsd'] = self.services[serv_id]['service']['nsd']
-            message['nsr'] = self.services[serv_id]['service']['nsr']
+            message['nsd' if is_nsd else 'cosd'] = self.services[serv_id]['service']['nsd' if is_nsd else 'cosd']
+            message['nsr' if is_nsd else 'cosr'] = self.services[serv_id]['service']['nsr' if is_nsd else 'cosr']
             vnfs = []
             for vnf in self.services[serv_id]['function']:
                 vnfs.append({'vnfd': vnf['vnfd'],
                              'id': vnf['id'],
                              'vnfr': vnf['vnfr']})
+            css = []
+            for cs in self.services[serv_id]['cloud_service']:
+                css.append({'csd': cs['csd'],
+                             'id': cs['id'],
+                             'csr': cs['csr']})
+            message['css'] = css
             message['vnfs'] = vnfs
             message['ssm_type'] = 'monitor'
             topic = 'generic.ssm.' + serv_id

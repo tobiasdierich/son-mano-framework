@@ -730,6 +730,62 @@ def build_monitoring_message(service, functions, cloud_services):
                             # add rule to message
                             message['rules'].append(r)
 
-    # TODO: Add support for cloud services
+    # add cs information
+    for cs in cloud_services:
+
+        csr = cs['csr']
+        csd = cs['csd']
+
+        # we should create one function per virtual deployment unit
+        for vdu in csr['virtual_deployment_units']:
+            cloud_service = {}
+            cloud_service['sonata_cloud_service_id'] = csr['id']
+            cloud_service['name'] = csd['name']
+            cloud_service['description'] = csd['description']
+            cloud_service['pop_id'] = cs['vim_uuid']
+            cloud_service['metrics'] = []
+
+            if 'monitoring_parameters' in vdu:
+
+                for mp in vdu['monitoring_parameters']:
+                    metric = {}
+                    metric['name'] = mp['name']
+                    metric['unit'] = mp['unit']
+
+                    associated_rule = get_associated_monitoring_rule(csd, mp['name'])
+                    if (associated_rule is not None):
+                        if 'threshold' in mp.keys():
+                            metric['threshold'] = mp['threshold']
+                        else:
+                            metric['threshold'] = None
+                        if 'frequency' in mp.keys():
+                            metric['interval'] = mp['frequency']
+                        else:
+                            metric['interval'] = None
+                        if 'command' in mp.keys():
+                            metric['cmd'] = mp['command']
+                        else:
+                            metric['cmd'] = None
+                        if 'description' in mp.keys():
+                            metric['description'] = mp['description']
+                        else:
+                            metric['description'] = ""
+
+                        cloud_service['metrics'].append(metric)
+
+            message['cloud_services'].append(cloud_service)
+
+        if 'monitoring_rules' in csd.keys():
+
+            # variable used to map the received notification_type to the
+            # integers expected by the monitoring repo
+            notification_type_mapping = {}
+            notification_type_mapping['sms'] = 1
+            notification_type_mapping['rabbitmq_message'] = 2
+            notification_type_mapping['email'] = 3
+
+            for mr in csd['monitoring_rules']:
+                rule = {}
+                # TODO Implement
 
     return message

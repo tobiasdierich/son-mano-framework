@@ -87,6 +87,9 @@ def build_csr(ia_csr, csd):
         if 'number_of_instances' in ia_vdu:
             vdu['number_of_instances'] = ia_vdu['number_of_instances']
 
+        if csd_vdu is not None and 'monitoring_parameters' in csd_vdu:
+            vdu['monitoring_parameters'] = csd_vdu['monitoring_parameters']
+
         csr['virtual_deployment_units'].append(vdu)
 
     return csr
