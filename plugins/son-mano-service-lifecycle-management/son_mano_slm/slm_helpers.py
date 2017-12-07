@@ -741,7 +741,7 @@ def build_monitoring_message(service, functions, cloud_services):
             cloud_service = {}
             cloud_service['cloud_service_record_uuid'] = csr['id']
             cloud_service['csd_name'] = csd['name']
-            cloud_service['vdu_name'] = vdu['name']
+            cloud_service['vdu_id'] = vdu['id']
             cloud_service['description'] = csd['description']
             cloud_service['pop_id'] = cs['vim_uuid']
             cloud_service['metrics'] = []
