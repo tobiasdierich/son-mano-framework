@@ -54,7 +54,7 @@ except:
 
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger("plugin:slm")
-LOG.setLevel(logging.INFO)
+LOG.setLevel(logging.DEBUG)
 
 
 class ServiceLifecycleManager(ManoBasePlugin):

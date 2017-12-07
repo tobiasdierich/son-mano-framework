@@ -736,11 +736,12 @@ def build_monitoring_message(service, functions, cloud_services):
         csr = cs['csr']
         csd = cs['csd']
 
-        # we should create one function per virtual deployment unit
+        # we should create one cloud service per virtual deployment unit
         for vdu in csr['virtual_deployment_units']:
             cloud_service = {}
-            cloud_service['sonata_cloud_service_id'] = csr['id']
-            cloud_service['name'] = csd['name']
+            cloud_service['cloud_service_record_uuid'] = csr['id']
+            cloud_service['csd_name'] = csd['name']
+            cloud_service['vdu_name'] = vdu['name']
             cloud_service['description'] = csd['description']
             cloud_service['pop_id'] = cs['vim_uuid']
             cloud_service['metrics'] = []
