@@ -187,7 +187,9 @@ class PlacementPlugin(ManoBasePlugin):
         for cloud_service in cloud_services:
             csd = cloud_service['csd']
             vdu = csd['virtual_deployment_units']
-            needed_mem = vdu[0]['resource_requirements']['memory']['size']
+            needed_mem = 0
+            if 'resource_requirements' in vdu[0] and 'memory' in vdu[0]['resource_requirements']:
+                needed_mem = vdu[0]['resource_requirements']['memory']['size']
 
             for vim in topology:
                 if vim['vim_type'] != 'Kubernetes':
