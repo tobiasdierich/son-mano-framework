@@ -2396,6 +2396,8 @@ class ServiceLifecycleManager(ManoBasePlugin):
         # Generate an istance uuid for the service
         serv_id = str(uuid.uuid4())
 
+        descriptor = payload['NSD'] if 'NSD' in payload else payload['COSD']
+
         # Add the service to the ledger and add instance ids
         self.services[serv_id] = {}
         self.services[serv_id]['service'] = {}
@@ -2405,7 +2407,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
             self.services[serv_id]['service']['cosd'] = payload['COSD']
         self.services[serv_id]['service']['id'] = serv_id
 
-        msg = ": NSD uuid is " + str(payload['NSD']['uuid'])
+        msg = ": NSD uuid is " + str(descriptor['uuid'])
         LOG.info("Service " + serv_id + msg)
 
         self.services[serv_id]['function'] = []
@@ -2451,10 +2453,7 @@ class ServiceLifecycleManager(ManoBasePlugin):
         self.services[serv_id]['task_log'] = []
 
         # Create the SSM dict if SSMs are defined in NSD
-        if 'NSD' in payload:
-            ssm_dict = tools.get_sm_from_descriptor(payload['NSD'])
-        else:
-            ssm_dict = tools.get_sm_from_descriptor(payload['COSD'])
+        ssm_dict = tools.get_sm_from_descriptor(descriptor)
 
         self.services[serv_id]['service']['ssm'] = ssm_dict
 
