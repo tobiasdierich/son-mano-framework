@@ -340,7 +340,7 @@ def get_ordered_vim_list(payload, which_graph=0):
 
     # TODO: Add support for cloud services
 
-    def find_vim_based_on_vnf_id(vnf_id, descriptor, payload):
+    def find_vim_based_on_vnf_id(vnf_id, descriptor):
         for vnf in descriptor['network_functions']:
             if vnf['vnf_id'] == vnf_id:
                 for func in payload['function']:
