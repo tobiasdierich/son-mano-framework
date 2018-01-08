@@ -141,8 +141,8 @@ class PlacementPlugin(ManoBasePlugin):
         LOG.info("Placement request for service: " + content['serv_id'])
         topology = content['topology']
         descriptor = content['nsd'] if 'nsd' in content else content['cosd']
-        functions = content['functions']
-        cloud_services = content['cloud_services']
+        functions = content['functions'] if 'functions' in content else []
+        cloud_services = content['cloud_services'] if 'cloud_services' in content else []
 
         placement = self.placement(descriptor, functions, cloud_services, topology)
 
