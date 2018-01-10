@@ -74,10 +74,12 @@ def build_csr(ia_csr, csd):
         vdu['vim_id'] = ia_vdu['vim_id']
         if 'resource_requirements' in csd_vdu:
             vdu['resource_requirements'] = csd_vdu['resource_requirements']
-        vdu['service_name'] = csd_vdu['service_name']
         vdu['service_image'] = csd_vdu['service_image']
         vdu['service_type'] = csd_vdu['service_type']
         vdu['service_ports'] = csd_vdu['service_ports']
+
+        if 'service_name' in csd_vdu:
+            vdu['service_name'] = csd_vdu['service_name']
 
         if 'environment' in csd_vdu:
             vdu['environment'] = csd_vdu['environment']
