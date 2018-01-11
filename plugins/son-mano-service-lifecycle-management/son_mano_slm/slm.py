@@ -2594,24 +2594,25 @@ class ServiceLifecycleManager(ManoBasePlugin):
             vnf['vnfd'] = req['content']['vnfd']
             LOG.info("Service " + serv_id + ": Recreate: VNFD retrieved.")
 
-        for cloud_service in record['cloud_services']:
-            base = t.CSR_REPOSITORY_URL + "cs-instances/"
-            request = tools.getRestData(base, cloud_service['csr_id'])
+        if 'cloud_services' in record:
+            for cloud_service in record['cloud_services']:
+                base = t.CSR_REPOSITORY_URL + "cs-instances/"
+                request = tools.getRestData(base, cloud_service['csr_id'])
 
-            if request['error'] is not None:
-                request_returned_with_error(request)
-                return
+                if request['error'] is not None:
+                    request_returned_with_error(request)
+                    return
 
-            new_cloud_service = {'id': cloud_service['csr_id'],
-                            'start': {'trigger': True, 'payload': {}},
-                            'stop': {'trigger': True, 'payload': {}},
-                            'configure': {'trigger': True, 'payload': {}},
-                            'scale': {'trigger': True, 'payload': {}},
-                            'csr': request['content']}
+                new_cloud_service = {'id': cloud_service['csr_id'],
+                                'start': {'trigger': True, 'payload': {}},
+                                'stop': {'trigger': True, 'payload': {}},
+                                'configure': {'trigger': True, 'payload': {}},
+                                'scale': {'trigger': True, 'payload': {}},
+                                'csr': request['content']}
 
-            self.services[serv_id]['cloud_service'].append(new_cloud_service)
-            msg = ": Recreating ledger: CSR retrieved."
-            LOG.info("Service " + serv_id + msg)
+                self.services[serv_id]['cloud_service'].append(new_cloud_service)
+                msg = ": Recreating ledger: CSR retrieved."
+                LOG.info("Service " + serv_id + msg)
 
         # Retrieve the CSDs based on the cloud service records
         for cloud_service in self.services[serv_id]['cloud_service']:
